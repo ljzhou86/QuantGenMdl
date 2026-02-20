@@ -14,6 +14,8 @@ def _amplitude_encode_structure(descriptor: Union[Sequence[float], torch.Tensor]
     fits the 2**n computational basis states used by QDDPM. Descriptors shorter
     than 2**n are zero-padded; longer descriptors are rejected to preserve
     reversibility during inverse generation.
+    Returns a complex64 tensor of shape (2**n,). If the descriptor norm is below
+    ZERO_NORM_THRESHOLD an unnormalized zero vector is returned.
     """
     target_dim = 2 ** n
     raw = torch.as_tensor(descriptor, dtype=torch.float32).flatten()
@@ -52,6 +54,8 @@ class CrystalInverseQDDPM(nn.Module):
         Convert a batch of crystal descriptors into normalized quantum states.
         Descriptors can be any real-valued sequences (e.g., concatenated lattice
         parameters, fractional coordinates, and atomic numbers).
+        Returns:
+            tensor of shape (batch_size, 2**n) with complex64 amplitudes.
         """
         encoded = [_amplitude_encode_structure(d, self.n) for d in descriptors]
         return torch.stack(encoded)
@@ -67,6 +71,13 @@ class CrystalInverseQDDPM(nn.Module):
         producing the noisy targets used by the backward denoising network.
         A fresh DiffusionModel is created to match the current batch size,
         which can differ between training and inference calls.
+        Args:
+            encoded_structures: tensor of shape (batch_size, 2**n) holding
+                                 amplitude-encoded crystal descriptors.
+            diff_hs: tensor of shape (T,) controlling diffusion circuit scaling.
+            seed: PRNG seed forwarded to the scrambling circuit.
+        Returns:
+            tensor of shape (batch_size, 2**n) after forward diffusion.
         """
         diffusion = DiffusionModel(self.n, self.T, encoded_structures.shape[0])
         return diffusion.set_diffusionData_t(self.T, encoded_structures, diff_hs, seed)
@@ -81,13 +92,15 @@ class CrystalInverseQDDPM(nn.Module):
         """
         Run the backward denoising process to propose new crystal descriptors.
         Args:
-            params_tot: learned circuit parameters for each backward step
+            params_tot: learned circuit parameters for each backward step with
+                        shape (T, 2*L*(n+na)).
             batch_size: number of samples to generate
             seed: randomness for Haar state initialization
             noisy_inputs: optional custom starting states at t = T; if omitted,
                           Haar random states are used.
         Returns:
-            generated_states: complex amplitudes on data qubits
+            generated_states: tensor of shape (batch_size, 2**n) with complex
+                              amplitudes on data qubits
             probabilities: tensor of shape (batch_size, 2**n) containing
                            measurement probabilities for each computational basis
         """
