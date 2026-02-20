@@ -99,8 +99,8 @@ class CrystalInverseQDDPM(nn.Module):
             batch_size: number of samples to generate; inferred from
                         noisy_inputs when provided.
             seed: randomness for Haar state initialization; ignored when
-                  noisy_inputs is provided. Defaults to None which falls back
-                  to zero when Haar sampling is used.
+                  noisy_inputs is provided. Defaults to None, which maps to
+                  seed=0 for deterministic sampling.
             noisy_inputs: optional custom starting states at t = T with shape
                           (batch_size, 2**n); if omitted, Haar random states
                           are used.
@@ -113,25 +113,27 @@ class CrystalInverseQDDPM(nn.Module):
         if isinstance(params_tot, torch.Tensor):
             params_tot = params_tot.detach().cpu().numpy()
 
-        if noisy_inputs is not None and batch_size is not None and noisy_inputs.shape[0] != batch_size:
-            raise ValueError(
-                f"batch_size ({batch_size}) does not match noisy_inputs batch dimension ({noisy_inputs.shape[0]})."
-            )
-
-        if noisy_inputs is not None and batch_size is None:
-            batch_size = noisy_inputs.shape[0]
+        resolved_batch_size = batch_size
+        if noisy_inputs is not None:
+            if resolved_batch_size is not None and noisy_inputs.shape[0] != resolved_batch_size:
+                raise ValueError(
+                    f"batch_size ({resolved_batch_size}) does not match noisy_inputs batch dimension ({noisy_inputs.shape[0]})."
+                )
+            if resolved_batch_size is None:
+                resolved_batch_size = noisy_inputs.shape[0]
 
         if noisy_inputs is None:
-            if batch_size is None:
+            if resolved_batch_size is None:
                 raise ValueError("batch_size must be provided when noisy_inputs is not supplied.")
-            seed = 0 if seed is None else seed
-            noisy_inputs = self.backbone.HaarSampleGeneration(batch_size, seed)
+            seed_value = 0 if seed is None else seed
+            noisy_inputs = self.backbone.HaarSampleGeneration(resolved_batch_size, seed_value)
 
         # backDataGeneration returns (T+1, batch_size, 2**(n+na)) stacked over diffusion steps
-        states = self.backbone.backDataGeneration(noisy_inputs, params_tot, batch_size)
-        if states.dim() != 3:
+        states = self.backbone.backDataGeneration(noisy_inputs, params_tot, resolved_batch_size)
+        expected_shape = (self.T + 1, resolved_batch_size, 2 ** (self.n + self.na))
+        if states.shape != expected_shape:
             raise ValueError(
-                f"Unexpected state tensor shape from backDataGeneration; expected (T+1, batch_size, 2**(n+na)), got {tuple(states.shape)}."
+                f"Unexpected state tensor shape from backDataGeneration; expected {expected_shape}, got {tuple(states.shape)}."
             )
         # states are filled in reverse time order, so index 0 is the denoised output at t=0
         generated_states = states[0, :, : 2 ** self.n]
