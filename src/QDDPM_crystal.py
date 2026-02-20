@@ -1,8 +1,8 @@
+import numpy as np
 import torch
 import torch.nn as nn
 
 from typing import Iterable, Sequence, Union
-
 from src.QDDPM_torch import DiffusionModel, QDDPM
 
 
@@ -21,7 +21,7 @@ def _amplitude_encode_structure(descriptor: Union[Sequence[float], torch.Tensor]
     padded = torch.zeros(target_dim, dtype=torch.complex64)
     padded[: raw.numel()] = raw.to(torch.complex64)
     norm = torch.linalg.norm(padded)
-    if norm == 0:
+    if torch.isclose(norm, torch.tensor(0.0, dtype=norm.dtype, device=norm.device)):
         return padded
     return padded / norm
 
@@ -69,7 +69,7 @@ class CrystalInverseQDDPM(nn.Module):
 
     def inverse_generate(
         self,
-        params_tot,
+        params_tot: Union[torch.Tensor, np.ndarray],
         batch_size: int,
         seed: int = 0,
         noisy_inputs: torch.Tensor = None,
@@ -79,7 +79,7 @@ class CrystalInverseQDDPM(nn.Module):
         Args:
             params_tot: learned circuit parameters for each backward step
             batch_size: number of samples to generate
-            seed: randomness for Haar state initialisation
+            seed: randomness for Haar state initialization
             noisy_inputs: optional custom starting states at t = T; if omitted,
                           Haar random states are used.
         Returns:
