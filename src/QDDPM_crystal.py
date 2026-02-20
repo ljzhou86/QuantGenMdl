@@ -48,6 +48,7 @@ class CrystalInverseQDDPM(nn.Module):
         self.T = T
         self.L = L
         self.backbone = QDDPM(n, na, T, L)
+        self.n_tot = self.backbone.n_tot
 
     def encode_structures(self, descriptors: Iterable[Union[Sequence[float], torch.Tensor]]) -> torch.Tensor:
         """
@@ -93,7 +94,7 @@ class CrystalInverseQDDPM(nn.Module):
         Run the backward denoising process to propose new crystal descriptors.
         Args:
             params_tot: learned circuit parameters for each backward step with
-                        shape (T, 2*self.L*self.backbone.n_tot), matching the
+                        shape (T, 2*self.L*self.n_tot), matching the
                         constructor arguments.
             batch_size: number of samples to generate
             seed: randomness for Haar state initialization
@@ -115,6 +116,7 @@ class CrystalInverseQDDPM(nn.Module):
         states = self.backbone.backDataGeneration(noisy_inputs, params_tot, batch_size)
         if states.dim() != 3:
             raise ValueError("Unexpected state tensor shape from backDataGeneration; expected (T+1, batch_size, 2**(n+na)).")
-        generated_states = states[0, :, : 2 ** self.n]  # first element along time dimension holds final denoised data-qubit amplitudes
+        # states are filled in reverse time order, so index 0 is the denoised output at t=0
+        generated_states = states[0, :, : 2 ** self.n]
         probabilities = torch.abs(generated_states) ** 2
         return generated_states, probabilities
