@@ -43,12 +43,21 @@ class CrystalInverseQDDPM(nn.Module):
 
     def __init__(self, n: int, na: int, T: int, L: int):
         super().__init__()
+        """
+        Args:
+            n: number of data qubits
+            na: number of ancilla qubits
+            T: number of diffusion steps
+            L: circuit layers used per backward denoising step
+        """
         self.n = n
         self.na = na
         self.T = T
         self.L = L
         self.backbone = QDDPM(n, na, T, L)
         self.n_tot = self.backbone.n_tot
+        self._cached_diffusion = None
+        self._cached_diffusion_batch = None
 
     def encode_structures(self, descriptors: Iterable[Union[Sequence[float], torch.Tensor]]) -> torch.Tensor:
         """
@@ -80,7 +89,11 @@ class CrystalInverseQDDPM(nn.Module):
         Returns:
             tensor of shape (batch_size, 2**n) after forward diffusion.
         """
-        diffusion = DiffusionModel(self.n, self.T, encoded_structures.shape[0])
+        batch_size = encoded_structures.shape[0]
+        if self._cached_diffusion is None or self._cached_diffusion_batch != batch_size:
+            self._cached_diffusion = DiffusionModel(self.n, self.T, batch_size)
+            self._cached_diffusion_batch = batch_size
+        diffusion = self._cached_diffusion
         return diffusion.set_diffusionData_t(self.T, encoded_structures, diff_hs, seed)
 
     def inverse_generate(
