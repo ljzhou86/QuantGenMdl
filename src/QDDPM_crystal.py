@@ -21,7 +21,7 @@ def _amplitude_encode_structure(descriptor: Union[Sequence[float], torch.Tensor]
     padded = torch.zeros(target_dim, dtype=torch.complex64)
     padded[: raw.numel()] = raw.to(torch.complex64)
     norm = torch.linalg.norm(padded)
-    if torch.isclose(norm, torch.tensor(0.0, dtype=norm.dtype, device=norm.device)):
+    if norm < 1e-12:
         return padded
     return padded / norm
 
@@ -63,6 +63,8 @@ class CrystalInverseQDDPM(nn.Module):
         """
         Apply the forward scrambling circuit to the encoded crystal structures,
         producing the noisy targets used by the backward denoising network.
+        A fresh DiffusionModel is created to match the current batch size,
+        which can differ between training and inference calls.
         """
         diffusion = DiffusionModel(self.n, self.T, encoded_structures.shape[0])
         return diffusion.set_diffusionData_t(self.T, encoded_structures, diff_hs, seed)
