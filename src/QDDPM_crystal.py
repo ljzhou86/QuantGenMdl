@@ -59,7 +59,7 @@ class CrystalInverseQDDPM(nn.Module):
         self._cached_diffusion = None
         self._cached_diffusion_batch = None
 
-    def encode_structures(self, descriptors: Iterable[Union[Sequence[float], torch.Tensor]]) -> torch.Tensor:
+    def encode_structures_batch(self, descriptors: Iterable[Union[Sequence[float], torch.Tensor]]) -> torch.Tensor:
         """
         Convert a batch of crystal descriptors into normalized quantum states.
         Descriptors can be any real-valued sequences (e.g., concatenated lattice
@@ -69,6 +69,10 @@ class CrystalInverseQDDPM(nn.Module):
         """
         encoded = [amplitude_encode_structure(d, self.n) for d in descriptors]
         return torch.stack(encoded)
+
+    # Retained for backward compatibility with earlier naming.
+    def encode_structures(self, descriptors: Iterable[Union[Sequence[float], torch.Tensor]]) -> torch.Tensor:
+        return self.encode_structures_batch(descriptors)
 
     def diffuse_structures(
         self,
@@ -95,6 +99,7 @@ class CrystalInverseQDDPM(nn.Module):
             self._cached_diffusion = DiffusionModel(self.n, self.T, batch_size)
             self._cached_diffusion_batch = batch_size
         diffusion = self._cached_diffusion
+        # Method name follows the original DiffusionModel API.
         return diffusion.set_diffusionData_t(self.T, encoded_structures, diff_hs, seed)
 
     def inverse_generate(
@@ -140,9 +145,11 @@ class CrystalInverseQDDPM(nn.Module):
             if resolved_batch_size is None:
                 raise ValueError("batch_size must be provided when noisy_inputs is not supplied.")
             seed_value = 0 if seed is None else seed
+            # Method name follows the upstream QDDPM implementation.
             noisy_inputs = self.backbone.HaarSampleGeneration(resolved_batch_size, seed_value)
 
         # backDataGeneration returns (T+1, batch_size, 2**(n+na)) stacked over diffusion steps
+        # Method name follows the upstream QDDPM implementation.
         states = self.backbone.backDataGeneration(noisy_inputs, params_tot, resolved_batch_size)
         expected_shape = (self.T + 1, resolved_batch_size, 2 ** (self.n + self.na))
         if states.shape != expected_shape:
