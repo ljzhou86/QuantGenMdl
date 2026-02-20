@@ -8,7 +8,7 @@ from src.QDDPM_torch import DiffusionModel, QDDPM
 ZERO_NORM_THRESHOLD = 1e-12
 
 
-def _amplitude_encode_structure(descriptor: Union[Sequence[float], torch.Tensor], n: int) -> torch.Tensor:
+def amplitude_encode_structure(descriptor: Union[Sequence[float], torch.Tensor], n: int) -> torch.Tensor:
     """
     Map a crystal structure descriptor into a normalized amplitude vector that
     fits the 2**n computational basis states used by QDDPM. Descriptors shorter
@@ -58,7 +58,7 @@ class CrystalInverseQDDPM(nn.Module):
         Returns:
             tensor of shape (batch_size, 2**n) with complex64 amplitudes.
         """
-        encoded = [_amplitude_encode_structure(d, self.n) for d in descriptors]
+        encoded = [amplitude_encode_structure(d, self.n) for d in descriptors]
         return torch.stack(encoded)
 
     def diffuse_structures(
@@ -115,7 +115,9 @@ class CrystalInverseQDDPM(nn.Module):
         # backDataGeneration returns (T+1, batch_size, 2**(n+na)) stacked over diffusion steps
         states = self.backbone.backDataGeneration(noisy_inputs, params_tot, batch_size)
         if states.dim() != 3:
-            raise ValueError("Unexpected state tensor shape from backDataGeneration; expected (T+1, batch_size, 2**(n+na)).")
+            raise ValueError(
+                f"Unexpected state tensor shape from backDataGeneration; expected (T+1, batch_size, 2**(n+na)), got {tuple(states.shape)}."
+            )
         # states are filled in reverse time order, so index 0 is the denoised output at t=0
         generated_states = states[0, :, : 2 ** self.n]
         probabilities = torch.abs(generated_states) ** 2
