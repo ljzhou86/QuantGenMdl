@@ -5,6 +5,8 @@ import torch.nn as nn
 from typing import Iterable, Sequence, Union
 from src.QDDPM_torch import DiffusionModel, QDDPM
 
+ZERO_NORM_THRESHOLD = 1e-12
+
 
 def _amplitude_encode_structure(descriptor: Union[Sequence[float], torch.Tensor], n: int) -> torch.Tensor:
     """
@@ -21,7 +23,7 @@ def _amplitude_encode_structure(descriptor: Union[Sequence[float], torch.Tensor]
     padded = torch.zeros(target_dim, dtype=torch.complex64)
     padded[: raw.numel()] = raw.to(torch.complex64)
     norm = torch.linalg.norm(padded)
-    if norm < 1e-12:
+    if norm < ZERO_NORM_THRESHOLD:
         return padded
     return padded / norm
 
@@ -95,6 +97,8 @@ class CrystalInverseQDDPM(nn.Module):
             noisy_inputs = self.backbone.HaarSampleGeneration(batch_size, seed)
 
         states = self.backbone.backDataGeneration(noisy_inputs, params_tot, batch_size)
+        # states are stacked over diffusion steps with index 0 corresponding to the
+        # final denoised output on data qubits; trailing dimensions hold amplitudes
         generated_states = states[0, :, : 2 ** self.n]
         probabilities = torch.abs(generated_states) ** 2
         return generated_states, probabilities
