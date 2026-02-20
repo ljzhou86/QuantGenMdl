@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from typing import Iterable, Sequence, Union
+from typing import Iterable, Optional, Sequence, Union
 from src.QDDPM_torch import DiffusionModel, QDDPM
 
 ZERO_NORM_THRESHOLD = 1e-12
@@ -76,7 +76,7 @@ class CrystalInverseQDDPM(nn.Module):
         params_tot: Union[torch.Tensor, np.ndarray],
         batch_size: int,
         seed: int = 0,
-        noisy_inputs: torch.Tensor = None,
+        noisy_inputs: Optional[torch.Tensor] = None,
     ):
         """
         Run the backward denoising process to propose new crystal descriptors.
@@ -88,7 +88,8 @@ class CrystalInverseQDDPM(nn.Module):
                           Haar random states are used.
         Returns:
             generated_states: complex amplitudes on data qubits
-            probabilities: measurement probabilities for each computational basis
+            probabilities: tensor of shape (batch_size, 2**n) containing
+                           measurement probabilities for each computational basis
         """
         if isinstance(params_tot, torch.Tensor):
             params_tot = params_tot.detach().cpu().numpy()
