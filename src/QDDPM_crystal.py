@@ -112,6 +112,6 @@ class CrystalInverseQDDPM(nn.Module):
             noisy_inputs = self.backbone.HaarSampleGeneration(batch_size, seed)
 
         states = self.backbone.backDataGeneration(noisy_inputs, params_tot, batch_size)
-        generated_states = states[0, :, : 2 ** self.n]  # index 0 stores the final denoised data-qubit amplitudes
+        generated_states = states[0, :, : 2 ** self.n]  # first element along time dimension holds final denoised data-qubit amplitudes
         probabilities = torch.abs(generated_states) ** 2
         return generated_states, probabilities
