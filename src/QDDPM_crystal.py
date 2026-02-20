@@ -42,7 +42,6 @@ class CrystalInverseQDDPM(nn.Module):
     """
 
     def __init__(self, n: int, na: int, T: int, L: int):
-        super().__init__()
         """
         Args:
             n: number of data qubits
@@ -50,6 +49,7 @@ class CrystalInverseQDDPM(nn.Module):
             T: number of diffusion steps
             L: circuit layers used per backward denoising step
         """
+        super().__init__()
         self.n = n
         self.na = na
         self.T = T
@@ -146,7 +146,7 @@ class CrystalInverseQDDPM(nn.Module):
         expected_shape = (self.T + 1, resolved_batch_size, 2 ** (self.n + self.na))
         if states.shape != expected_shape:
             raise ValueError(
-                f"Unexpected state tensor shape from backDataGeneration; expected {expected_shape}, got {tuple(states.shape)}."
+                f"Unexpected state tensor shape from backDataGeneration; expected {expected_shape}, got {states.shape}."
             )
         # states are filled in reverse time order, so index 0 is the denoised output at t=0
         generated_states = states[0, :, : 2 ** self.n]
