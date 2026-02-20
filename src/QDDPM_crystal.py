@@ -86,8 +86,8 @@ class CrystalInverseQDDPM(nn.Module):
     def inverse_generate(
         self,
         params_tot: Union[torch.Tensor, np.ndarray],
-        batch_size: int,
-        seed: int = 0,
+        batch_size: Optional[int] = None,
+        seed: Optional[int] = None,
         noisy_inputs: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -96,10 +96,14 @@ class CrystalInverseQDDPM(nn.Module):
             params_tot: learned circuit parameters for each backward step with
                         shape (T, 2*self.L*self.n_tot), matching the
                         constructor arguments.
-            batch_size: number of samples to generate
-            seed: randomness for Haar state initialization
-            noisy_inputs: optional custom starting states at t = T; if omitted,
-                          Haar random states are used.
+            batch_size: number of samples to generate; inferred from
+                        noisy_inputs when provided.
+            seed: randomness for Haar state initialization; ignored when
+                  noisy_inputs is provided. Defaults to None which falls back
+                  to zero when Haar sampling is used.
+            noisy_inputs: optional custom starting states at t = T with shape
+                          (batch_size, 2**n); if omitted, Haar random states
+                          are used.
         Returns:
             generated_states: tensor of shape (batch_size, 2**n) with complex
                               amplitudes on data qubits
@@ -109,7 +113,18 @@ class CrystalInverseQDDPM(nn.Module):
         if isinstance(params_tot, torch.Tensor):
             params_tot = params_tot.detach().cpu().numpy()
 
+        if noisy_inputs is not None and batch_size is not None and noisy_inputs.shape[0] != batch_size:
+            raise ValueError(
+                f"batch_size ({batch_size}) does not match noisy_inputs batch dimension ({noisy_inputs.shape[0]})."
+            )
+
+        if noisy_inputs is not None and batch_size is None:
+            batch_size = noisy_inputs.shape[0]
+
         if noisy_inputs is None:
+            if batch_size is None:
+                raise ValueError("batch_size must be provided when noisy_inputs is not supplied.")
+            seed = 0 if seed is None else seed
             noisy_inputs = self.backbone.HaarSampleGeneration(batch_size, seed)
 
         # backDataGeneration returns (T+1, batch_size, 2**(n+na)) stacked over diffusion steps
