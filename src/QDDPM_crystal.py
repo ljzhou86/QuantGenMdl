@@ -93,8 +93,8 @@ class CrystalInverseQDDPM(nn.Module):
         Run the backward denoising process to propose new crystal descriptors.
         Args:
             params_tot: learned circuit parameters for each backward step with
-                        shape (T, 2*L*(n+na)) where L matches the constructor
-                        argument self.L.
+                        shape (T, 2*self.L*(self.n+self.na)), matching the
+                        constructor arguments.
             batch_size: number of samples to generate
             seed: randomness for Haar state initialization
             noisy_inputs: optional custom starting states at t = T; if omitted,
