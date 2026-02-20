@@ -31,3 +31,6 @@ Notebooks in this repository can be used to reproduce the experiment presented i
 In addition to these, the two files `QDT_training.ipynb` and `QGAN_training.ipynb` show the training process of our benchmark models (Quantum Direct Transport and Quantum GAN, respectfully), and both utilize the JAX backend.
 
 Lastly, code in `bloch_visualize.ipynb` were used to generate the Bloch sphere visualizations used in the paper.
+
+### Crystal inverse generation
+The module `src/QDDPM_crystal.py` provides a `CrystalInverseQDDPM` wrapper that reuses the QDDPM backbone for inverse design of crystalline materials. It offers utilities to amplitude-encode crystal descriptors, diffuse them through the scrambling circuit, and run the backward denoising process to propose candidate crystal structures.
