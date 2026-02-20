@@ -81,6 +81,7 @@ class CrystalInverseQDDPM(nn.Module):
         producing the noisy targets used by the backward denoising network.
         A fresh DiffusionModel is created to match the current batch size,
         which can differ between training and inference calls.
+        Note: the cached DiffusionModel is intended for single-threaded use.
         Args:
             encoded_structures: tensor of shape (batch_size, 2**n) holding
                                  amplitude-encoded crystal descriptors.
@@ -146,7 +147,8 @@ class CrystalInverseQDDPM(nn.Module):
         expected_shape = (self.T + 1, resolved_batch_size, 2 ** (self.n + self.na))
         if states.shape != expected_shape:
             raise ValueError(
-                f"Unexpected state tensor shape from backDataGeneration; expected {expected_shape}, got {states.shape}."
+                f"Unexpected state tensor shape from backDataGeneration; expected {expected_shape}, got {states.shape}. "
+                "Check that params_tot matches (T, 2*self.L*self.n_tot) and that batch sizing aligns with noisy_inputs."
             )
         # states are filled in reverse time order, so index 0 is the denoised output at t=0
         generated_states = states[0, :, : 2 ** self.n]
